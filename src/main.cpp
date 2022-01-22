@@ -170,22 +170,22 @@
 #define VERSION     "Mon, 28 Jun 2021 12:40:00 GMT"
 // ESP32-Radio can be updated (OTA) to the latest version from a remote server.
 // The download uses the following server and files:
-#define UPDATEHOST  "smallenburg.nl"                    // Host for software updates
+#define UPDATEHOST  "127.0.0.1"                    // Host for software updates
 #define BINFILE     "/Arduino/ESP32_radio/firmware.bin" // Binary file name for update software
 #define TFTFILE     "/Arduino/ESP32-Radio.tft"          // Binary file name for update NEXTION image
 //
 // Define type of local filesystem(s).  See documentation.
 //#define CH376                          // For CXH376 support (reading files from USB stick)
-//#define SDCARD                         // For SD card support (reading files from SD card)
+#define SDCARD                         // For SD card support (reading files from SD card)
 // Define (just one) type of display.  See documentation.
-#define BLUETFT                        // Works also for RED TFT 128x160
+//#define BLUETFT                        // Works also for RED TFT 128x160
 //#define OLED1306                     // 64x128 I2C OLED SSD1306
 //#define OLED1309                     // 64x128 I2C OLED SSD1309
 //#define OLED1106                     // 64x128 I2C OLED SH1106
 //#define DUMMYTFT                     // Dummy display
 //#define LCD1602I2C                   // LCD 1602 display with I2C backpack
 //#define LCD2004I2C                   // LCD 2004 display with I2C backpack
-//#define ILI9341                      // ILI9341 240*320
+#define ILI9341                      // ILI9341 240*320
 //#define NEXTION                      // Nextion display. Uses UART 2 (pin 16 and 17)
 //
 #include <Arduino.h>
@@ -221,7 +221,7 @@
 // Adjust size of buffer to the longest expected string for nvsgetstr
 #define NVSBUFSIZE 150
 // Position (column) of time in topline relative to end
-#define TIMEPOS -52
+#define TIMEPOS -100
 // SPI speed for SD card
 #define SDSPEED 1000000
 // Size of metaline buffer
@@ -436,6 +436,7 @@ int16_t           playlist_num = 0 ;                     // Nonzero for selectio
 fs_type           usb_sd = FS_USB ;                      // SD or USB interface
 uint32_t          mp3filelength ;                        // File length
 bool              localfile = false ;                    // Play from local mp3-file or not
+bool              bluetooth = false ;
 bool              chunked = false ;                      // Station provides chunked transfer
 int               chunkcount = 0 ;                       // Counter for chunked transfer
 String            http_getcmd ;                          // Contents of last GET command
@@ -1409,8 +1410,10 @@ void tftset ( uint16_t inx, String& str )
 // Convert a single Character from UTF8 to Extended ASCII.                                         *
 // Return "0" if a byte has to be ignored.                                                         *
 //**************************************************************************************************
+
 char utf8ascii ( char ascii )
 {
+ 
   static const char lut_C3[] = { "AAAAAAACEEEEIIIIDNOOOOO#0UUUU###"
                                  "aaaaaaaceeeeiiiidnooooo##uuuuyyy" } ;
   static char       c1 ;              // Last character buffer
@@ -1437,6 +1440,7 @@ char utf8ascii ( char ascii )
     c1 = ascii ;                      // Remember actual character
   }
   return res ;                        // Otherwise: return zero, if character has to be ignored
+  
 }
 
 
@@ -3392,13 +3396,13 @@ void setup()
     {
       dsp_setRotation() ;                                // Use landscape format
       dsp_erase() ;                                      // Clear screen
-      dsp_setTextSize ( 1 ) ;                            // Small character font
+      dsp_setTextSize ( 2 ) ;                            // Small character font
       dsp_setTextColor ( WHITE ) ;                       // Info in white
       dsp_setCursor ( 0, 0 ) ;                           // Top of screen
       dsp_print ( "Starting..." "\n" "Version:" ) ;
       strncpy ( tmpstr, VERSION, 16 ) ;                  // Limit version length
       dsp_println ( tmpstr ) ;
-      dsp_println ( "By Ed Smallenburg" ) ;
+      //dsp_println ( "By Ed Smallenburg" ) ;
       dsp_update() ;                                     // Show on physical screen
     }
   }
@@ -3436,9 +3440,9 @@ void setup()
     dbgprint ( "Network found. Starting mqtt and OTA" ) ;
     mqtt_on = ( ini_block.mqttbroker.length() > 0 ) &&   // Use MQTT if broker specified
               ( ini_block.mqttbroker != "none" ) ;
-    ArduinoOTA.setHostname ( NAME ) ;                    // Set the hostname
-    ArduinoOTA.onStart ( otastart ) ;
-    ArduinoOTA.begin() ;                                 // Allow update over the air
+   // ArduinoOTA.setHostname ( NAME ) ;                    // Set the hostname
+   // ArduinoOTA.onStart ( otastart ) ;
+   // ArduinoOTA.begin() ;                                 // Allow update over the air
     if ( mqtt_on )                                       // Broker specified?
     {
       if ( ( ini_block.mqttprefix.length() == 0 ) ||     // No prefix?
@@ -4255,6 +4259,11 @@ void mp3loop()
         mp3filelength -= res ;                           // Number of bytes left
       }
     }
+    //playing bluetooth file
+    else if (bluetooth)
+    {
+        //play bluetooth file from source
+    }
     else
     {
       av = mp3client.available() ;                       // Available from stream
@@ -4305,6 +4314,9 @@ void mp3loop()
       claimSPI ( "close" ) ;                             // Claim SPI bus
       close_SDCARD() ;
       releaseSPI() ;                                     // Release SPI bus
+    }
+    else if (bluetooth){
+      //clear bluetooth resources
     }
     else
     {
@@ -4390,12 +4402,16 @@ void mp3loop()
     mqttpub.trigger ( MQTT_PRESET ) ;                     // Request publishing to MQTT
     // Find out if this URL is on localhost (SD).
     localfile = ( host.indexOf ( "localhost/" ) >= 0 ) ;
+    bluetooth = ( host.indexOf ( "bluetooth/" ) >= 0 ) ;
     if ( localfile )                                      // Play file from localhost?
     {
       if ( ! connecttofile() )                            // Yes, open mp3-file
       {
         setdatamode ( STOPPED ) ;                         // Start in DATA mode
       }
+    }
+    else if (bluetooth){
+      //init bluetooth
     }
     else
     {
@@ -4438,7 +4454,7 @@ void loop()
   scanserial2() ;                                   // Handle serial input from NEXTION (if active)
   scandigital() ;                                   // Scan digital inputs
   scanIR() ;                                        // See if IR input
-  ArduinoOTA.handle() ;                             // Check for OTA
+  //ArduinoOTA.handle() ;                             // Check for OTA
   mp3loop() ;                                       // Do more mp3 related actions
   handlehttpreply() ;
   cmdclient = cmdserver.available() ;               // Check Input from client?
@@ -4456,7 +4472,7 @@ void loop()
   handleIpPub() ;                                   // See if time to publish IP
   handleVolPub() ;                                  // See if time to publish volume
   chk_enc() ;                                       // Check rotary encoder functions
-  check_CH376() ;                                   // Check Flashdrive insert/remove
+  //check_CH376() ;                                   // Check Flashdrive insert/remove
 }
 
 

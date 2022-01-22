@@ -33,7 +33,7 @@ scrseg_struct     tftdata[TFTSECS] =                        // Screen divided in
 Adafruit_ILI9341*     tft = NULL ;                                  // For instance of display driver
 
 // Various macro's to mimic the ILI9341 version of display functions
-#define dsp_setRotation()       tft->setRotation ( 3 )             // Use landscape format (3 for upside down)
+#define dsp_setRotation()       tft->setRotation ( 1 )             // Use landscape format (3 for upside down)
 #define dsp_print(a)            tft->print ( a )                   // Print a string 
 #define dsp_println(b)          tft->println ( b )                 // Print a string followed by newline 
 #define dsp_fillRect(a,b,c,d,e) tft->fillRect ( a, b, c, d, e ) ;  // Fill a rectange
@@ -113,9 +113,9 @@ void displayvolume()
       oldvol = newvol ;                                 // Remember for next compare
       len = map ( newvol, 0, 100, 0, dsp_getwidth() ) ; // Compute length on TFT
       dsp_fillRect ( 0, dsp_getheight() - 2,
-                     len, 2, RED ) ;                    // Paint red part
+                     len, 2, GREEN ) ;                    // Paint red part
       dsp_fillRect ( len, dsp_getheight() - 2,
-                     dsp_getwidth() - len, 2, GREEN ) ; // Paint green part
+                     dsp_getwidth() - len, 2, RED ) ; // Paint green part
     }
   }
 }
@@ -150,12 +150,12 @@ void displaytime ( const char* str, uint16_t color )
     {
       if ( str[i] != oldstr[i] )                   // Difference?
       {
-        dsp_fillRect ( pos, 0, 6, 8, BLACK ) ;     // Clear the space for new character
+        dsp_fillRect ( pos, 0, 10, 16, BLACK ) ;     // Clear the space for new character
         dsp_setCursor ( pos, 0 ) ;                 // Prepare to show the info
         dsp_print ( str[i] ) ;                     // Show the character
         oldstr[i] = str[i] ;                       // Remember for next compare
       }
-      pos += 6 ;                                   // Next position
+      pos += 10 ;                                   // Next position
     }
   }
 }
